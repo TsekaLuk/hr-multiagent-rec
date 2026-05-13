@@ -30,13 +30,26 @@
 5-job 数据有 ±5% 标准误差，但**双向评分的相对提升幅度稳定**
 (+14.6pp nDCG@10 on 5-job, +9.4pp on 30-job)。
 
-### 第三轮（运行中）
+### 第三轮：3 个 job 全消融（含 Reranker on MPS）
+
+| 方法 | P@10 | R@10 | nDCG@10 | MRR | 耗时 |
+|---|---:|---:|---:|---:|---:|
+| BM25                             | 0.967 | 0.211 | 0.826 | 1.000 | 3s |
+| TF-IDF                           | 0.867 | 0.188 | 0.712 | 0.833 | 0.6s |
+| full_no_agent (Emb+Reranker+Bi)  | **0.967** | **0.213** | **0.920** | **1.000** | 1489s (~25 min) |
+
+**关键结论**：在双向评分基础上叠加 Qwen3-Reranker 交叉编码精排后，
+nDCG@10 从 **0.889 → 0.920** (+3.1 pp)，验证了同族精排器的边际增益。
+
+> 注：Reranker 阶段在 M4 16GB 上运行较慢（每个 cross-encoder 调用 ~10s），
+> 论文中可以汇报 GPU 部署下的预期吞吐。
+
+### 第四轮：Full Multi-Agent（运行中，含 DeepSeek-V4-Flash）
 
 | 方法 | 状态 |
 |---|---|
-| + Reranker + Bidirectional       | 运行中（CPU Reranker，避免 16GB OOM） |
-| Full (+ Multi-Agent, DeepSeek-V4) | 待运行 |
-| MRL dim=256 / 128                 | 待运行 |
+| Full (+ Multi-Agent, DeepSeek-V4-Flash via SiliconFlow) | 运行中 |
+| MRL dim=256 / 128                                       | 待运行 |
 
 ## 多智能体真实 API 验证（2026-05-14）
 
