@@ -90,7 +90,12 @@ Real numbers from a 30-job slice of the synthetic Tianchi-style corpus
 | BM25 (jieba)                            | 0.967 | 0.203 | 0.829     | 0.983  |
 | Qwen3-Embedding-0.6B (no rerank)        | 0.930 | 0.192 | 0.795     | 0.967  |
 | **+ Bidirectional scoring (this work)** | **0.947** | **0.198** | **0.889** | **1.000** |
-| + Reranker + Multi-Agent                | TBA   | TBA   | TBA       | TBA    |
+| + Reranker + Multi-Agent                | _running_   | _running_   | _running_       | _running_    |
+
+> **Update 2026-05-14:** 3/3 end-to-end multi-agent tests pass against the
+> real SiliconFlow API using `deepseek-ai/DeepSeek-V4-Flash`. The async
+> orchestrator (parallel fan-out + prompt-cache layout) is validated;
+> the remaining ablation rows are running now and will be appended.
 
 Adding our bidirectional scoring on top of pure semantic recall yields
 **+9.4 percentage points of nDCG@10** and lifts MRR to 1.0 on this

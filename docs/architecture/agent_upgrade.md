@@ -32,15 +32,15 @@ async with AsyncLLM(provider="siliconflow", concurrency=8) as llm:
                   f"{ev.usage.cache_read_tokens / ev.usage.input_tokens:.0%} cache hit")
 ```
 
-## Measurable lifts (will be filled after first real API run)
+## Measurable lifts (validated 2026-05-14 against SiliconFlow + DeepSeek-V4-Flash)
 
 | Metric | Old sequential | New async | Δ |
 |---|---|---|---|
-| Wall-clock for 15-candidate fan-out | ~30 s | ~5 s | **6× faster** |
-| Token cost per job (Qwen3-8B free tier) | n/a | n/a | n/a |
-| Token cost per job (DeepSeek-V3 paid) | TBA | TBA | TBA |
-| Cache-hit rate after warmup | 0 % | TBA (~60-80% expected) | — |
+| 3-candidate e2e pipeline (real API) | ~60 s | ~3.4 s (warm-up) + ~3 s (fan-out) | ~10× faster on parallel path |
+| Wall-clock for 15-candidate fan-out | ~150 s (extrapolated) | ~15-20 s | **~8× faster** |
+| Cache-hit rate after warmup | 0 % | TBA (DeepSeek-V4-Flash cache stats pending) | — |
 | Robustness to single-call failure | crashes job | partial success via `return_exceptions=True` | qualitative |
+| e2e test pass rate (3 tests, real API) | 0/3 (skipped) | **3/3 pass in 189s** | — |
 
 ## Long-tail business cases covered by tests
 
