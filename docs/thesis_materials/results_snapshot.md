@@ -44,12 +44,33 @@ nDCG@10 从 **0.889 → 0.920** (+3.1 pp)，验证了同族精排器的边际增
 > 注：Reranker 阶段在 M4 16GB 上运行较慢（每个 cross-encoder 调用 ~10s），
 > 论文中可以汇报 GPU 部署下的预期吞吐。
 
-### 第四轮：Full Multi-Agent（运行中，含 DeepSeek-V4-Flash）
+### 第四轮：Full Multi-Agent（**已完成**，Qwen3.5-4B + thinking off）
+
+| 方法 | P@10 | R@10 | nDCG@10 | MRR | 总耗时 |
+|---|---:|---:|---:|---:|---:|
+| Full (Reranker + Bidirectional + Multi-Agent) | **0.967** | **0.213** | **0.920** | **1.000** | 533s (~9 min) |
+
+实测多 Agent 阶段单 job 耗时：
+- Job 0: 12 LLM 调用, in=4018, out=2577 → **34.1s**
+- Job 1: 11 LLM 调用, in=3353, out=2281 → **28.9s**
+- Job 2: 11 LLM 调用, in=3447, out=2395 → **26.7s**
+- 合计 34 调用, ~10.8K 入 / ~7.3K 出
+
+**关键发现**：
+1. **Multi-Agent 在 3-job 上与 full_no_agent 数值持平** (nDCG@10=0.920) — Agent
+   的价值在**可解释性（生成推荐理由）和软指标（fit 判断）**，而非硬性 ranking。
+   这与开题报告中"Agent 协同提供解释力 + 调整 ±0.08"的设计一致。
+2. **Qwen3.5-4B + `enable_thinking=False`** 让每个 LLM 调用降至 ~3-5s TTFT，
+   3 个 job 全 multi-agent 总共 90s（vs 老 DeepSeek-V4-Flash 跑同样 fan-out
+   12+ 分钟）— **>5× 加速**。
+3. **MRR=1.000** 横跨所有 ≥ bidirectional 配置 — 强匹配候选人恒处 Top-1。
+
+### 第五轮：MRL dim=256/128, LLM 后端对比
 
 | 方法 | 状态 |
 |---|---|
-| Full (+ Multi-Agent, DeepSeek-V4-Flash via SiliconFlow) | 运行中 |
-| MRL dim=256 / 128                                       | 待运行 |
+| MRL dim=256 / 128 | 待运行 |
+| LLM 后端对比（V4-Flash vs Qwen3.5-9B vs Qwen3.6-35B-A3B） | 待运行 |
 
 ## 多智能体真实 API 验证（2026-05-14）
 

@@ -149,6 +149,7 @@ class Pipeline:
         results.sort(key=lambda x: x.fused_score, reverse=True)
 
         # 4. Multi-agent stage (optional)
+        self._last_usage = None  # type: ignore[attr-defined]
         if cfg.use_multi_agent and self.orchestrator is not None:
             top_m = results[: cfg.top_m_agent]
             top_resumes = [self._resume_lookup[ms.resume_id] for ms in top_m]
@@ -156,6 +157,8 @@ class Pipeline:
             # Splice agent-reordered top-M back in front of the tail.
             tail = results[cfg.top_m_agent :]
             results = list(out.final_ranking) + tail
+            # Surface usage telemetry to the experiment harness.
+            self._last_usage = getattr(out, "total_usage", None)  # type: ignore[attr-defined]
 
         return results
 

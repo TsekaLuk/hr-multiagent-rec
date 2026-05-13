@@ -125,7 +125,26 @@ def _run_pipeline(jobs, resumes, cfg, llm_cfg, exp):  # type: ignore[no-untyped-
     )
     pipe = Pipeline(embedder, reranker=reranker, orchestrator=orchestrator, config=pc)
     pipe.index_resumes(resumes)
-    return {j.job_id: pipe.match_one(j) for j in jobs}
+
+    # Lazy-import Usage so non-agent experiments don't need the agents module.
+    from hr_rec.agents.events import Usage, lookup_pricing
+
+    rankings: dict[str, list] = {}
+    agg = Usage()
+    for j in jobs:
+        rankings[j.job_id] = pipe.match_one(j)
+        u = getattr(pipe, "_last_usage", None)
+        if isinstance(u, Usage):
+            agg = agg + u
+
+    # Stash for the caller (only used by Multi-Agent runs).
+    model_name = (exp.get("llm_override") or {}).get("model") or llm_cfg.get("model", "")
+    _LAST_USAGE_AGG["usage"] = agg
+    _LAST_USAGE_AGG["pricing"] = lookup_pricing(model_name)
+    return rankings
+
+
+_LAST_USAGE_AGG: dict = {"usage": None, "pricing": None}
 
 
 def main() -> None:
@@ -173,6 +192,21 @@ def main() -> None:
         metrics = _evaluate(rankings, rel_map, ks)
         metrics["experiment"] = exp["name"]
         metrics["seconds"] = round(elapsed, 1)
+
+        # Telemetry columns (only populated by Multi-Agent runs).
+        agg_usage = _LAST_USAGE_AGG.get("usage")
+        pricing = _LAST_USAGE_AGG.get("pricing")
+        if agg_usage is not None and agg_usage.calls > 0:
+            metrics["llm_calls"] = agg_usage.calls
+            metrics["input_tokens"] = agg_usage.input_tokens
+            metrics["output_tokens"] = agg_usage.output_tokens
+            metrics["cache_read_tokens"] = agg_usage.cache_read_tokens
+            metrics["cache_hit_rate"] = round(agg_usage.cache_hit_rate(), 4)
+            metrics["cost_usd"] = round(agg_usage.cost_usd(pricing), 6)
+        # Reset per-experiment.
+        _LAST_USAGE_AGG["usage"] = None
+        _LAST_USAGE_AGG["pricing"] = None
+
         log.info(
             "  %s: P@10=%.3f R@10=%.3f nDCG@10=%.3f MRR=%.3f  (%.1fs)",
             exp["name"],
@@ -182,6 +216,14 @@ def main() -> None:
             metrics["MRR"],
             elapsed,
         )
+        if "cost_usd" in metrics:
+            log.info(
+                "    telemetry: calls=%d in=%d out=%d cache_read=%d "
+                "cache_hit=%.1f%% cost=$%.5f",
+                metrics["llm_calls"], metrics["input_tokens"],
+                metrics["output_tokens"], metrics["cache_read_tokens"],
+                100 * metrics["cache_hit_rate"], metrics["cost_usd"],
+            )
         rows.append(metrics)
 
     if not rows:
@@ -190,9 +232,15 @@ def main() -> None:
 
     out_csv = Path(args.out)
     out_csv.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["experiment", "seconds", *[k for k in rows[0] if k not in ("experiment", "seconds")]]
+    # Union of keys across all rows (telemetry columns only exist on Multi-Agent rows).
+    seen: list[str] = []
+    for r in rows:
+        for k in r:
+            if k not in seen:
+                seen.append(k)
+    fieldnames = ["experiment", "seconds", *[k for k in seen if k not in ("experiment", "seconds")]]
     with open(out_csv, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore", restval="")
         w.writeheader()
         for r in rows:
             w.writerow(r)

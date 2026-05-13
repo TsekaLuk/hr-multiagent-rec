@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from hr_rec.agents.async_orchestrator import AsyncOrchestrator
+from hr_rec.agents.events import Usage, lookup_pricing
 from hr_rec.agents.llm_async import AsyncLLM
 from hr_rec.data.schemas import Job, MatchScore, Resume
 
@@ -26,6 +27,7 @@ class _SyncResult:
     job_analysis: dict
     candidate_analyses: dict
     trace: list[dict]
+    total_usage: Usage = field(default_factory=Usage)
 
 
 class AsyncOrchestratorFacade:
@@ -68,14 +70,19 @@ class AsyncOrchestratorFacade:
                     candidate_concurrency=self.concurrency,
                 )
                 result = await orch.run(job, resumes, pre_ranked)
+                pricing = lookup_pricing(self.model)
+                cost = result.total_usage.cost_usd(pricing)
                 logger.info(
-                    "multi-agent job=%s calls=%d in=%d out=%d cache_read=%d seconds=%.1f",
+                    "multi-agent job=%s calls=%d in=%d out=%d cache_read=%d "
+                    "cache_hit_rate=%.1f%% seconds=%.1f cost_usd=%.5f",
                     job.job_id,
                     result.total_usage.calls,
                     result.total_usage.input_tokens,
                     result.total_usage.output_tokens,
                     result.total_usage.cache_read_tokens,
+                    100 * result.total_usage.cache_hit_rate(),
                     result.total_usage.seconds,
+                    cost,
                 )
                 return _SyncResult(
                     final_ranking=result.final_ranking,
@@ -83,6 +90,7 @@ class AsyncOrchestratorFacade:
                     job_analysis=result.job_analysis,
                     candidate_analyses=result.candidate_analyses,
                     trace=[],
+                    total_usage=result.total_usage,
                 )
 
         return asyncio.run(_go())

@@ -22,6 +22,11 @@ from typing import Any
 import httpx
 
 from hr_rec.agents.events import Usage
+from hr_rec.agents.resilience import (
+    CircuitBreaker,
+    RetryReport,
+    with_typed_retry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +77,11 @@ class AsyncLLM:
         if extra_body is None and disable_thinking:
             extra_body = {"enable_thinking": False}
         self.extra_body: dict[str, Any] = extra_body or {}
+        # Circuit breaker: trips after 3 consecutive same-class failures
+        # (e.g. 3× 503 in a row). Fail-fast saves a long retry storm
+        # when the provider is genuinely down.
+        self.breaker = CircuitBreaker(max_consecutive=3, cool_down_seconds=30.0)
+        self.last_retry_reports: list[RetryReport] = []
 
         key = api_key or self._key_from_env(provider)
         base = base_url or self._base_url(provider)
@@ -107,24 +117,27 @@ class AsyncLLM:
             "stream": False,
             **self.extra_body,
         }
+        async def _once() -> tuple[str, Usage]:
+            t0 = time.time()
+            r = await self._client.post("/chat/completions", json=body)
+            r.raise_for_status()
+            data = r.json()
+            elapsed = time.time() - t0
+            text = data["choices"][0]["message"]["content"] or ""
+            usage = self._parse_usage(data.get("usage") or {}, elapsed)
+            return text, usage
+
         async with self.semaphore:
-            last_err: Exception | None = None
-            for attempt in range(retries + 1):
-                t0 = time.time()
-                try:
-                    r = await self._client.post("/chat/completions", json=body)
-                    r.raise_for_status()
-                    data = r.json()
-                    elapsed = time.time() - t0
-                    text = data["choices"][0]["message"]["content"] or ""
-                    usage = self._parse_usage(data.get("usage") or {}, elapsed)
-                    return text, usage
-                except httpx.HTTPError as e:
-                    last_err = e
-                    # Exponential backoff on transient failures.
-                    await asyncio.sleep(min(2 ** attempt, 10))
-                    continue
-            raise AsyncLLMError(f"chat failed after {retries + 1} attempts: {last_err}")
+            try:
+                (text, usage), report = await with_typed_retry(
+                    _once,
+                    max_attempts=retries + 1,
+                    breaker=self.breaker,
+                )
+                self.last_retry_reports.append(report)
+                return text, usage
+            except Exception as e:
+                raise AsyncLLMError(f"chat failed: {e}") from e
 
     async def chat_json(
         self,
