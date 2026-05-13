@@ -34,7 +34,7 @@ async def llm():
         pytest.skip("SILICONFLOW_API_KEY not set — skipping real-LLM tests")
     try:
         async with AsyncLLM(
-            model="Qwen/Qwen3-8B",
+            model="deepseek-ai/DeepSeek-V4-Flash",
             provider="siliconflow",
             concurrency=4,
             max_tokens=512,

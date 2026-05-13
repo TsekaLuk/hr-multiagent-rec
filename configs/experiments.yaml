@@ -10,7 +10,7 @@ data:
 
 llm:
   provider: siliconflow
-  model: Qwen/Qwen3-8B
+  model: deepseek-ai/DeepSeek-V4-Flash
   temperature: 0.2
   # Set SILICONFLOW_API_KEY in your environment
 

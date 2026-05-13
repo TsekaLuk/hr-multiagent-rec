@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Models
     embedding_model: str = "Qwen/Qwen3-Embedding-0.6B"
     reranker_model: str = "Qwen/Qwen3-Reranker-0.6B"
-    agent_llm_model: str = "Qwen/Qwen3-8B"
+    agent_llm_model: str = "deepseek-ai/DeepSeek-V4-Flash"
     gemini_model: str = "gemini-2.5-flash-lite"
     deepseek_model: str = "deepseek-chat"
 

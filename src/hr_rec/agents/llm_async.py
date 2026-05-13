@@ -45,7 +45,7 @@ class AsyncLLM:
     def __init__(
         self,
         *,
-        model: str = "Qwen/Qwen3-8B",
+        model: str = "deepseek-ai/DeepSeek-V4-Flash",
         api_key: str | None = None,
         base_url: str | None = None,
         provider: str = "siliconflow",

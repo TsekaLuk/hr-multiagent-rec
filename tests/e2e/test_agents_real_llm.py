@@ -34,7 +34,11 @@ def llm() -> LLM:
     if not os.environ.get("SILICONFLOW_API_KEY"):
         pytest.skip("SILICONFLOW_API_KEY not set — skipping real-LLM tests")
     try:
-        return LLM(model="Qwen/Qwen3-8B", provider="siliconflow", max_tokens=512)
+        return LLM(
+            model="deepseek-ai/DeepSeek-V4-Flash",
+            provider="siliconflow",
+            max_tokens=512,
+        )
     except LLMError as e:
         pytest.skip(f"could not init LLM: {e}")
 
