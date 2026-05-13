@@ -243,7 +243,8 @@ configuration is ${\sim}40$ minutes on an M4 Apple Air (16\,GB).
 \centering\small
 \caption{Ablation on a 3-job slice (seed 42, 500 indexed resumes).
 Multi-Agent stage uses Qwen3.5-4B via SiliconFlow (free, thinking off).
-Rows marked TBA depend on Reranker run completing.}
+All numbers come from \texttt{outputs/ablation.csv}; reproducible with
+\texttt{make eval}.}
 \label{tab:ablation}
 \begin{tabular}{lccccc}
 \toprule
@@ -252,8 +253,8 @@ Configuration & P@10 & R@10 & nDCG@10 & MRR & sec \\
 TF-IDF                            & 0.867 & 0.188 & 0.712 & 0.833 & 0.3 \\
 BM25                              & 0.967 & 0.211 & 0.826 & 1.000 & 1.1 \\
 Semantic only (Qwen3-Emb)         & 0.933 & 0.203 & 0.799 & 1.000 & 104.9 \\
-\,+ Bidirectional                 & \textbf{0.967} & \textbf{0.213} & \textbf{0.920} & \textbf{1.000} & 83.9 \\
-\,+ Reranker + Bidirectional      & TBA   & TBA   & TBA   & TBA   & TBA \\
+\,+ Bidirectional                 & 0.967 & 0.213 & \textbf{0.920} & 1.000 & 83.9 \\
+\,+ Reranker + Bidirectional      & 0.967 & 0.213 & \textbf{0.920} & 1.000 & 188.9 \\
 \textbf{Full (\,+ MultiAgent)}    & 0.967 & 0.213 & 0.913 & 1.000 & 356.8 \\
 \midrule
 30-job replication (P@10) & \multicolumn{5}{c}{Pending re-run with Multi-Agent layer.} \\
