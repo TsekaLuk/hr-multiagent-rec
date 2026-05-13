@@ -22,6 +22,21 @@ def _detect_device() -> str:
     return "cpu"
 
 
+def _resolve_model_path(model_name: str) -> str:
+    """Prefer ModelScope cache when present (faster for users on CN networks).
+
+    ModelScope replaces '.' with '___' in directory names.
+    """
+    import os
+    from pathlib import Path
+
+    ms_root = Path(os.environ.get("MODELSCOPE_CACHE", Path.home() / ".cache" / "modelscope"))
+    ms_path = ms_root / "hub" / "models" / model_name.replace(".", "___")
+    if ms_path.exists() and any(ms_path.glob("*.safetensors")):
+        return str(ms_path)
+    return model_name
+
+
 class Embedder:
     """A thin, typed wrapper around a Sentence-Transformers model.
 
@@ -48,16 +63,21 @@ class Embedder:
         self.model_name = model_name
         self.device = device or _detect_device()
         self.normalize = normalize
-        logger.info("loading embedding model %s on %s", model_name, self.device)
-        self._st = SentenceTransformer(model_name, device=self.device)
+        # If a local ModelScope path exists, prefer it (no second network round-trip).
+        load_target = _resolve_model_path(model_name)
+        logger.info("loading embedding model %s on %s", load_target, self.device)
+        self._st = SentenceTransformer(load_target, device=self.device)
         try:
             self._st.max_seq_length = max_seq_length
         except Exception:
             pass
-        # Native embedding dimension
-        self._dim: int = int(self._st.get_sentence_embedding_dimension() or 0)
+        # Native embedding dimension. Newer sentence-transformers renamed the method.
+        getter = getattr(
+            self._st, "get_embedding_dimension",
+            getattr(self._st, "get_sentence_embedding_dimension", None),
+        )
+        self._dim: int = int(getter() if getter else 0)
         if self._dim <= 0:
-            # fall back to a probe
             probe = self._st.encode(["probe"], convert_to_numpy=True)
             self._dim = int(probe.shape[1])
 

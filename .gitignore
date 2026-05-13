@@ -69,3 +69,7 @@ paper/_minted-*
 
 # Jupyter
 .ipynb_checkpoints/
+!outputs/ablation.csv
+!outputs/ablation.json
+!outputs/*.csv
+!outputs/*.json

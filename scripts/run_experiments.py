@@ -124,7 +124,7 @@ def main() -> None:
     ap.add_argument(
         "--filter",
         default=None,
-        help="Only run experiments whose name matches this substring",
+        help="Only run experiments whose name contains any of these (comma-separated) substrings",
     )
     args = ap.parse_args()
 
@@ -141,8 +141,9 @@ def main() -> None:
     top_k = max(ks)
 
     rows: list[dict] = []
+    filters = [f.strip() for f in (args.filter or "").split(",") if f.strip()]
     for exp in cfg["experiments"]:
-        if args.filter and args.filter not in exp["name"]:
+        if filters and not any(f in exp["name"] for f in filters):
             continue
         method = exp["method"]
         log.info("▶ running experiment: %s (method=%s)", exp["name"], method)
