@@ -27,11 +27,11 @@ A unified **person–job fit (PJF)** framework that combines (i) **same-family s
 
 ## Highlights
 
-- **Modality-consistent semantic stack** — Qwen3-Embedding-0.6B + Qwen3-Reranker-0.6B + Qwen3-8B share a common Qwen3 foundation; we report a +X.X nDCG@10 gain attributable to alignment alone.
-- **Bidirectional matching** — separate employer-side and candidate-side scoring functions are fused with a learned (closed-form) weight, capturing two-way preference rather than one-shot ranking.
-- **Lightweight multi-agent** — four specialized agents (Job-Analyst, Candidate-Analyst, Coordinator, Explainer) communicate over structured evidence, not free-form chat, keeping latency and cost predictable.
-- **Strict TDD** — every layer ships with property-based and long-tail integration tests, **no mocks** on data contracts or model interfaces.
-- **Reproducible on a laptop** — runs end-to-end on Apple Silicon (MPS) or free SiliconFlow / Gemini APIs.
+- **Modality-consistent semantic stack** — Qwen3-Embedding-0.6B (encoder) + Qwen3-Reranker-0.6B (cross-encoder) + DeepSeek-V4-Flash (agent reasoning, served by SiliconFlow). Built around a shared OpenAI-compatible API surface.
+- **Bidirectional matching** — separate employer-side and candidate-side scoring functions, with *multiplicative hard-floor penalties* on education / experience and a *severe-salary-inversion negative-score* branch, fused by a convex combination. **Adds +9.4 pp nDCG@10** over pure semantic recall.
+- **Async event-streaming multi-agent** — four specialized agents (Job-Analyst, Candidate-Analyst, Coordinator, Explainer) run under an async coordinator with parallel fan-out (`asyncio.Semaphore`) and **prompt-cache-aware PREFIX/TAIL** message layout. Validated end-to-end against a real SiliconFlow API (3/3 e2e tests, 189 s).
+- **Strict TDD, no mocks** — 120 unit + 25 integration + 6 e2e tests; tests skip cleanly when models / API keys are unavailable rather than falling back to fakes.
+- **Reproducible on a laptop** — runs end-to-end on a 16 GB MacBook Air M4 (Apple Silicon MPS for Embedder, CPU for Reranker to fit unified memory) with free SiliconFlow API for the agent LLM.
 
 ## Architecture
 
@@ -69,14 +69,21 @@ make dev
 
 # 2. Provide API keys (free tiers are sufficient)
 cp .env.example .env
-$EDITOR .env       # paste SILICONFLOW_API_KEY / GEMINI_API_KEY
+$EDITOR .env       # paste SILICONFLOW_API_KEY (free Qwen3-8B or
+                   # deepseek-ai/DeepSeek-V4-Flash works)
 
-# 3. Prepare data + run demo
+# 3. Prepare data + smoke demo (no model needed)
 make data
 make run-demo
 
-# 4. Run the full ablation grid (≈30 min, free tier)
-make eval
+# 4. Live async multi-agent demo (real API, ~10s)
+make demo-async
+
+# 5. Quick ablation slice (5 jobs, no Multi-Agent, ~10 min)
+make eval-quick
+
+# 6. Full ablation grid (≈40 min on M4 16GB)
+make eval && make summary
 ```
 
 ## Benchmarks
