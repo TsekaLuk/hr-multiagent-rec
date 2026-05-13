@@ -54,6 +54,8 @@ class AsyncLLM:
         # See hr_rec.agents.llm.LLM for the 180s rationale.
         timeout: float = 180.0,
         concurrency: int = 8,
+        extra_body: dict[str, Any] | None = None,
+        disable_thinking: bool | None = None,
     ) -> None:
         self.model = model
         self.provider = provider
@@ -61,6 +63,15 @@ class AsyncLLM:
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.semaphore = asyncio.Semaphore(concurrency)
+        # Default policy: structured-JSON agents (most of our calls) MUST disable
+        # the Qwen3.x default thinking mode, else every reply prepends a long
+        # chain-of-thought block, doubling latency and bloating output cost.
+        # Auto-detect by model name when caller didn't ask.
+        if disable_thinking is None:
+            disable_thinking = "qwen3" in model.lower()
+        if extra_body is None and disable_thinking:
+            extra_body = {"enable_thinking": False}
+        self.extra_body: dict[str, Any] = extra_body or {}
 
         key = api_key or self._key_from_env(provider)
         base = base_url or self._base_url(provider)
@@ -94,6 +105,7 @@ class AsyncLLM:
             "temperature": temperature if temperature is not None else self.temperature,
             "max_tokens": max_tokens or self.max_tokens,
             "stream": False,
+            **self.extra_body,
         }
         async with self.semaphore:
             last_err: Exception | None = None

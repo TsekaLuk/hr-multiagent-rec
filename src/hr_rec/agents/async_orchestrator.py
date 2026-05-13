@@ -161,8 +161,14 @@ class AsyncOrchestrator:
         *,
         explain_top_k: int = 10,
         candidate_concurrency: int = 8,
+        coordinator_llm: AsyncLLM | None = None,
     ) -> None:
+        # Tier-2 fast LLM for high-volume agents (Job-Analyst, Candidate-Analyst,
+        # Explainer). Small + thinking-disabled = ~5x faster than Tier-1.
         self.llm = llm
+        # Tier-1 strong LLM for the once-per-job synthesis agent (Coordinator).
+        # Falls back to the deterministic rule-based coordinator if omitted.
+        self.coordinator_llm = coordinator_llm
         self.explain_top_k = explain_top_k
         self.candidate_concurrency = candidate_concurrency
         self.last_result: AsyncOrchestratorResult | None = None
