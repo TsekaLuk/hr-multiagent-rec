@@ -56,6 +56,15 @@ run-demo:  ## Run end-to-end demo on sample data
 eval:  ## Run full ablation experiments
 	$(ACT) python scripts/run_experiments.py --config configs/experiments.yaml
 
+eval-quick:  ## Quick smoke run (5 jobs, no Multi-Agent)
+	$(ACT) python scripts/run_experiments.py --max-jobs 5 --filter "bm25,tfidf,semantic_only,semantic_plus_bidirectional,full_no_agent"
+
+summary:  ## Print the latest ablation table
+	$(ACT) python scripts/summarize_ablation.py
+
+demo-async:  ## Live event-stream demo against real API
+	$(ACT) python scripts/demo_async.py
+
 paper:  ## Compile arXiv paper
 	cd paper && latexmk -pdf main.tex
 
