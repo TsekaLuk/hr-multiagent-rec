@@ -73,7 +73,7 @@ nDCG@10 从 **0.889 → 0.920** (+3.1 pp)，验证了同族精排器的边际增
 | BM25          | 0.967 | 0.211 | 0.826 | 1.000 | 1.1s | — | — |
 | Qwen3-Embedding only | 0.933 | 0.203 | 0.799 | 1.000 | 104.9s | — | — |
 | **+ Bidirectional** | **0.967** | **0.213** | **0.920** | **1.000** | 83.9s | — | — |
-| + Reranker + Bidirectional (full_no_agent) | _running_ | _running_ | _running_ | _running_ | _~600s_ | — | — |
+| + Reranker + Bidirectional (full_no_agent) | 0.967 | 0.213 | **0.920** | 1.000 | 188.9s | — | — |
 | **+ Multi-Agent (full)** | 0.967 | 0.213 | 0.913 | 1.000 | 356.8s | **33** | **$0.00** |
 
 ### 第六轮：MRL dim=256/128, LLM 后端对比

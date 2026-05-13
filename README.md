@@ -98,7 +98,7 @@ Multi-Agent stage ran against the real SiliconFlow API using `Qwen/Qwen3.5-4B`
 | BM25 (jieba)                        | 0.967 | 0.211 | 0.826     | 1.000  | 1.1    | —      |
 | Qwen3-Embedding-0.6B only           | 0.933 | 0.203 | 0.799     | 1.000  | 104.9  | —      |
 | + Bidirectional scoring             | 0.967 | 0.213 | **0.920** | 1.000  | 83.9   | —      |
-| + Reranker (CPU) + Bidirectional    | _running_ | _running_ | _running_ | _running_ | _~600_ | —    |
+| + Reranker (CPU) + Bidirectional    | 0.967 | 0.213 | **0.920** | 1.000  | 188.9  | —      |
 | **Full (+ Multi-Agent)** ⭐          | 0.967 | 0.213 | 0.913     | 1.000  | 356.8  | **$0** |
 
 Multi-Agent stage telemetry (Qwen3.5-4B via SiliconFlow free tier):
