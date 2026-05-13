@@ -1,0 +1,16 @@
+stateDiagram-v2
+    [*] --> init
+    init --> job_analysis: start
+    job_analysis --> candidate_fan_out: job_analysed
+    candidate_fan_out --> coordination: candidates_done
+    coordination --> explanation: coord_done
+    explanation --> terminal: explained
+    job_analysis --> job_analysis: json_parse_retry
+    candidate_fan_out --> candidate_fan_out: json_parse_retry
+    candidate_fan_out --> candidate_fan_out: max_tokens_retry
+    candidate_fan_out --> candidate_fan_out: ctx_overflow_shrink
+    explanation --> explanation: json_parse_retry
+    job_analysis --> terminal: circuit_breaker_open
+    candidate_fan_out --> terminal: user_cancel
+    candidate_fan_out --> terminal: provider_error
+    terminal --> [*]
