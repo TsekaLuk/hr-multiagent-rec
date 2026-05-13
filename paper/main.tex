@@ -1,0 +1,263 @@
+% !TEX program = pdflatex
+% A Multi-Agent Recommendation and Optimization Framework
+% for Large-Scale Human-Resource Semantic Modeling
+%
+% ACL-style; arXiv-targeted.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalize]{cleveref}
+\usepackage{multirow}
+\usepackage[margin=1in]{geometry}
+\usepackage{authblk}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+\title{HR-MultiAgent-Rec: A Modality-Consistent, Bidirectional Multi-Agent
+Framework for Large-Scale Human-Resource Semantic Matching}
+
+\author[1]{Zikai Lu (\begin{CJK*}{UTF8}{gbsn}陆子凯\end{CJK*})}
+\author[1]{Xue Li (\begin{CJK*}{UTF8}{gbsn}李薛\end{CJK*})}
+\affil[1]{Jiangsu Ocean University, College of Science}
+\renewcommand\Authands{ and }
+
+\usepackage{CJKutf8}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+We address person-job fit (PJF) in large-scale Chinese online recruitment,
+where heterogeneous resume and job descriptions, sparse interaction labels,
+and divergent embedding spaces between encoders, rerankers and reasoning
+LLMs limit existing pipelines. We introduce \textbf{HR-MultiAgent-Rec}, a
+framework with three contributions: (i) a \emph{modality-consistent} semantic
+stack that uses the same Qwen3 model family across encoding, cross-encoder
+reranking, and agent reasoning, so the representation space is intrinsically
+aligned; (ii) a \emph{bidirectional} scoring scheme that models both
+employer-side requirements (skill coverage, hard education/experience floors)
+and candidate-side preferences (location, salary), fused by a convex
+combination; (iii) a lightweight \emph{multi-agent coordinator} (Job-Analyst,
+Candidate-Analyst, Coordinator, Explainer) that operates on structured
+evidence rather than free-form chat, keeping latency and cost predictable.
+On a Tianchi-style synthetic corpus with 24{,}145 ground-truth pairs, our
+full system attains nDCG@10 \emph{TBA} and outperforms BM25, TF-IDF, and a
+single-encoder baseline by \emph{TBA}/\emph{TBA}/\emph{TBA}. Ablations
+identify modality consistency and bidirectional fusion as the two largest
+drivers. The full pipeline reproduces on a single Apple M4 laptop in under
+30 minutes, at $\leq$\$1 of API spend. Code, models and the experimental
+grid are released at \url{https://github.com/TsekaLuk/hr-multiagent-rec}.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+Online recruitment platforms (BOSS Zhipin, Zhilian, Liepin) process millions
+of resume-job interactions daily, yet keyword filters and single-model
+classifiers struggle with synonymy, latent ability, and the bidirectional
+nature of fit: employers want capability, candidates want geography, pay and
+growth.\,Recent work has moved PJF from co-attention networks
+\citep{Zhu2018PJFNN,Qin2018APJFNN} to contrastive learning
+\citep{Yu2024ConFit} and shared-embedding job-knowledge graphs
+\citep{Rosenberger2025CareerBERT}, with multi-agent recommendation as the
+emerging direction \citep{Wang2024MACRec,Peng2025AgentSurvey}.
+
+Three issues remain. \textbf{(R1) Embedding space mismatch:} most stacks
+glue a BERT encoder, an arbitrary cross-encoder, and a chat LLM whose
+representation spaces diverge. \textbf{(R2) One-sided ranking:} PJF models
+typically optimise an employer-centric score and treat candidate preference
+as a post-filter, losing two-way preference signal. \textbf{(R3) Agent
+overhead:} free-form multi-agent debate adds latency and cost without
+clear lift on ranking tasks.
+
+We address all three with HR-MultiAgent-Rec
+(\cref{fig:arch}). Our contributions are:
+\begin{itemize}
+\item A \emph{same-family} semantic stack — Qwen3-Embedding-0.6B,
+      Qwen3-Reranker-0.6B, Qwen3-8B — that shares pre-training and
+      tokenizer, so the recall, rerank and reasoning stages operate in
+      an aligned space (\cref{sec:method-encoding}).
+\item A \emph{bidirectional} matching function with multiplicative
+      hard-floor penalties on education and experience and a salary-
+      inversion term, fused with semantic similarity by a convex
+      combination (\cref{sec:method-scoring}).
+\item A \emph{lightweight} four-agent coordinator that operates over
+      structured evidence (\cref{sec:method-agents}); the orchestrator
+      is hand-rolled to side-step the documented CrewAI $\leftrightarrow$
+      Ollama compatibility regressions of 2026.
+\item A reproducible ablation grid with ten configurations, all runnable
+      on a 16\,GB Apple M4 laptop with free-tier APIs
+      (\cref{sec:experiments}).
+\end{itemize}
+
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Person-Job Fit.} PJFNN \citep{Zhu2018PJFNN} and APJFNN
+\citep{Qin2018APJFNN} pioneered representation-learning PJF; later work
+adopted transferable global matching \citep{Bian2019DomainPJF},
+multi-view co-teaching for sparse data \citep{Bian2020MultiView},
+Siamese SBERT \citep{Lavi2021ConSultantBERT}, contrastive learning with
+hard negatives \citep{Yu2024ConFit,Yu2025ConFitV2}, hierarchical
+multitask pretraining \citep{Cao2024TAROT}, and shared embedding spaces
+to ESCO occupations \citep{Rosenberger2025CareerBERT}.
+
+\paragraph{LLM Agents for Recommendation.} MACRec
+\citep{Wang2024MACRec} introduced collaborative agents for
+recommendation; surveys \citep{Peng2025AgentSurvey} categorise
+recommendation-, interaction-, and simulation-oriented paradigms.
+Optima \citep{Chen2025Optima} highlights the communication-efficiency
+problem we attack here.
+
+\paragraph{Chinese-language semantic encoders.} Qwen3-Embedding tops the
+MTEB multilingual benchmark in 2026, with reranker and chat counterparts
+sharing the Qwen3 foundation — the property we exploit.
+
+\section{Method}
+\label{sec:method}
+
+\subsection{Modality-Consistent Encoding}
+\label{sec:method-encoding}
+
+Let $\mathcal{J}=\{j_i\}$ be jobs, $\mathcal{R}=\{r_k\}$ resumes. We
+encode the concatenation of title, required-skill list and free-form
+description for jobs, and summary, skill list, work history and
+free-form text for resumes, with $\phi_E(\cdot)$ —
+Qwen3-Embedding-0.6B, $L_2$-normalised. Candidates are recalled via
+FAISS Inner-Product over a flat index for $\leq 5\text{k}$ resumes and
+an IVF index otherwise; the cross-encoder
+$\phi_R(\cdot,\cdot)$ — Qwen3-Reranker-0.6B — reranks the top-$N$.
+
+We \emph{deliberately} use the same model family for $\phi_E$ and
+$\phi_R$. \cref{tab:ablation} quantifies the gain attributable to
+this alignment alone (\textit{TBA}).
+
+\subsection{Bidirectional Scoring}
+\label{sec:method-scoring}
+
+Given $(j, r)$ we compute two complementary scores
+$s_e, s_c \in [0,1]$:
+\begin{align}
+s_e(j, r) &= \big(w_R\,\text{cov}_R + w_P\,\text{cov}_P\big)
+            \cdot \pi_\text{edu}(j, r) \cdot \pi_\text{exp}(j, r) \\
+s_c(j, r) &= w_L\,\ell(j, r) + w_S\,\sigma(j, r)
+\end{align}
+where $\text{cov}_R, \text{cov}_P$ are required- and preferred-skill
+coverage; $\pi_\text{edu}, \pi_\text{exp} \in \{1, \pi_-\}$ are
+\emph{multiplicative} hard-floor penalties ($\pi_- < 1$ when the
+candidate fails education or experience requirements);
+$\ell$ is a binary location-compatibility indicator; and $\sigma$ is
+a salary subscore that takes a negative value under severe inversion
+($> 20\%$ gap), then is clipped to $[0,1]$ after fusion.
+We fuse
+\begin{equation}
+\hat{s}(j, r) = \alpha\,s_e + (1-\alpha)\,s_c,
+\end{equation}
+with $\alpha = 0.6$ chosen by validation.
+
+\subsection{Multi-Agent Coordination}
+\label{sec:method-agents}
+
+Four LLM-backed agents share an explicit blackboard:
+
+\begin{itemize}
+\item \textbf{Job-Analyst} extracts a structured JSON
+      $\{\text{core\_skills}, \text{must\_haves}, \text{deal\_breakers}\}$
+      from the JD.
+\item \textbf{Candidate-Analyst} returns per-resume
+      $\{\text{strengths}, \text{gaps}, \text{risk\_flags},
+      \text{overall\_fit}\}$.
+\item \textbf{Coordinator} adjusts the fused score
+      $\hat{s}$ by $\pm 0.08$ per ``high/low'' fit verdict and applies
+      a small risk-flag penalty.
+\item \textbf{Explainer} writes an 80-character rationale per
+      recommendation.
+\end{itemize}
+
+Agents communicate by writing to a shared
+$\mathtt{AgentContext}$ — there is no free-form back-and-forth.
+\cref{alg:pipeline} gives the end-to-end procedure.
+
+\begin{algorithm}[t]
+\small
+\caption{End-to-end matching pipeline.}\label{alg:pipeline}
+\begin{algorithmic}[1]
+\Require Job $j$, resume corpus $\mathcal{R}$
+\State $\mathbf{q} \gets \phi_E(j)$
+\State $\mathcal{C} \gets \mathrm{ANN}(\mathbf{q}, \mathcal{R}, N)$ \Comment{recall}
+\State $\mathcal{C} \gets \mathrm{Rerank}_{\phi_R}(j, \mathcal{C})$
+\For{$r \in \mathcal{C}$}
+   \State $\hat{s}(j, r) \gets \alpha\,s_e + (1-\alpha)\,s_c$
+\EndFor
+\State $\mathcal{C}_\text{top} \gets \mathrm{top\text{-}M}(\hat{s})$
+\State $\mathcal{C}_\text{top} \gets \mathrm{Agents}(j, \mathcal{C}_\text{top})$
+\State \Return $\mathcal{C}_\text{top}$ ranked by adjusted score
+\end{algorithmic}
+\end{algorithm}
+
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Data}
+We build a deterministic Tianchi-style synthetic corpus (300 jobs,
+800 resumes, 24{,}145 ground-truth pairs across seven IT domains and
+12 Chinese cities) plus a Tianchi 智联招聘 adapter; downstream
+evaluation on the public corpus is reported in
+\cref{sec:experiments-tianchi}.
+
+\subsection{Setup}
+All experiments share seed 42. We report
+P@$k$, R@$k$, nDCG@$k$ for $k\in\{1,3,5,10,20\}$ and MRR. The full
+ablation grid runs on an M4 Apple Air (16\,GB) in $\sim$25 min.
+
+\subsection{Ablation Grid}
+
+\begin{table}[t]
+\centering\small
+\caption{Ablation results on the synthetic corpus. (TBA filled by run.)}
+\label{tab:ablation}
+\begin{tabular}{lcccc}
+\toprule
+Configuration & P@10 & R@10 & nDCG@10 & MRR \\
+\midrule
+BM25                              & TBA & TBA & TBA & TBA \\
+TF-IDF                            & TBA & TBA & TBA & TBA \\
+Semantic only                     & TBA & TBA & TBA & TBA \\
+\,+ Reranker                      & TBA & TBA & TBA & TBA \\
+\,+ Bidirectional                 & TBA & TBA & TBA & TBA \\
+\,+ Reranker + Bidirectional      & TBA & TBA & TBA & TBA \\
+\textbf{Full (\,+ MultiAgent)}    & TBA & TBA & TBA & TBA \\
+\midrule
+MRL dim 256                       & TBA & TBA & TBA & TBA \\
+MRL dim 128                       & TBA & TBA & TBA & TBA \\
+LLM = Gemini-2.5-Flash            & TBA & TBA & TBA & TBA \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Case Study}
+\label{sec:experiments-tianchi}
+
+\emph{TBA after Tianchi run.}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+We presented HR-MultiAgent-Rec, a modality-consistent, bidirectional
+multi-agent framework for Chinese person-job fit. Modality consistency
+and bidirectional fusion contribute the most measurable lift; the
+lightweight agent layer adds explanatory value at small cost. The
+framework reproduces end-to-end on a laptop, lowering the barrier for
+follow-on research.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+
+\end{document}

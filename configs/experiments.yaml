@@ -1,0 +1,75 @@
+# Ablation grid — all experiments share the same corpus and seed.
+seed: 42
+data:
+  source: synthetic
+  n_jobs: 200
+  n_resumes: 500
+  top_n_recall: 50
+  top_m_agent: 15
+  eval_k: [1, 3, 5, 10, 20]
+
+llm:
+  provider: siliconflow
+  model: Qwen/Qwen3-8B
+  temperature: 0.2
+  # Set SILICONFLOW_API_KEY in your environment
+
+experiments:
+  - name: bm25
+    method: bm25
+
+  - name: tfidf
+    method: tfidf
+
+  - name: semantic_only
+    method: pipeline
+    use_reranker: false
+    use_bidirectional: false
+    use_multi_agent: false
+
+  - name: semantic_plus_reranker
+    method: pipeline
+    use_reranker: true
+    use_bidirectional: false
+    use_multi_agent: false
+
+  - name: semantic_plus_bidirectional
+    method: pipeline
+    use_reranker: false
+    use_bidirectional: true
+    use_multi_agent: false
+
+  - name: full_no_agent
+    method: pipeline
+    use_reranker: true
+    use_bidirectional: true
+    use_multi_agent: false
+
+  - name: full
+    method: pipeline
+    use_reranker: true
+    use_bidirectional: true
+    use_multi_agent: true
+
+  - name: full_mrl_dim_256
+    method: pipeline
+    use_reranker: true
+    use_bidirectional: true
+    use_multi_agent: true
+    dim: 256
+
+  - name: full_mrl_dim_128
+    method: pipeline
+    use_reranker: true
+    use_bidirectional: true
+    use_multi_agent: true
+    dim: 128
+
+  - name: full_gemini
+    method: pipeline
+    use_reranker: true
+    use_bidirectional: true
+    use_multi_agent: true
+    llm_override:
+      provider: openrouter
+      model: google/gemini-2.5-flash
