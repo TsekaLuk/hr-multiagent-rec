@@ -225,8 +225,17 @@ evaluation on the public corpus is reported in
 
 \subsection{Setup}
 All experiments share seed 42. We report
-P@$k$, R@$k$, nDCG@$k$ for $k\in\{1,3,5,10,20\}$ and MRR. The full
-ablation grid runs on an M4 Apple Air (16\,GB) in $\sim$25 min.
+P@$k$, R@$k$, nDCG@$k$ for $k\in\{1,3,5,10,20\}$ and MRR. Models and
+inference targets:
+\begin{itemize}
+\item Embedder: Qwen3-Embedding-0.6B (MPS, FP32).
+\item Reranker: Qwen3-Reranker-0.6B (CPU, FP32; co-loading both
+      models on MPS exceeds the M4 16\,GB unified-memory budget).
+\item Agent LLM: \texttt{deepseek-ai/DeepSeek-V4-Flash} served by
+      SiliconFlow under the OpenAI-compatible protocol.
+\end{itemize}
+Wall-clock for the 3-job ablation slice including the full multi-agent
+configuration is ${\sim}40$ minutes on an M4 Apple Air (16\,GB).
 
 \subsection{Ablation Grid}
 
@@ -265,6 +274,30 @@ inversion) is not just a nice-to-have but a primary signal in PJF.
 \label{sec:experiments-tianchi}
 
 \emph{TBA after Tianchi run.}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{The dominant lever is bidirectional scoring, not the
+reranker or the agents.} The largest single lift in our ablation
+(+9.4 percentage points of nDCG@10 over the pure Qwen3-Embedding
+baseline) comes from adding the candidate-side score and fusing it
+with the employer side. The cross-encoder reranker contributes a
+further ${\sim}+3$ pp; the multi-agent layer is, by design, smaller
+in numerical impact and primarily delivers explanability and
+calibrated uncertainty.
+
+\paragraph{Same-family models simplify the engineering of prompt
+caching.} The PREFIX/TAIL message layout we use for parallel
+Candidate-Analyst fan-out (\cref{sec:method-agents}) relies on a
+deterministic prefix ordering; with same-family tokenizers we never
+have to worry about cross-vendor cache key drift.
+
+\paragraph{Limitations.} Our ground-truth comes from a synthetic
+generator seeded with real Chinese skill vocabulary; real-world
+interaction labels may have heavier tail behaviour. The Reranker
+on CPU adds wall-clock for laptop deployments; the same configuration
+on a single CUDA GPU finishes in seconds rather than minutes.
 
 \section{Conclusion}
 \label{sec:conclusion}
