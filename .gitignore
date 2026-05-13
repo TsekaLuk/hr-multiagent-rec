@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Secrets
+.env
+.env.local
+*.key
+secrets/
+
+# Data (only commit small samples)
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/README.md
+data/processed/*
+!data/processed/.gitkeep
+data/cache/
+data/synthetic/*
+!data/synthetic/sample_*.json
+
+# Models / Embeddings
+*.pt
+*.bin
+*.safetensors
+*.faiss
+models/
+
+# Logs / Outputs
+logs/
+runs/
+outputs/
+wandb/
+
+# Paper build
+paper/main.aux
+paper/main.log
+paper/main.out
+paper/main.bbl
+paper/main.blg
+paper/main.toc
+paper/main.fls
+paper/main.fdb_latexmk
+paper/main.synctex.gz
+paper/_minted-*
+
+# Jupyter
+.ipynb_checkpoints/
