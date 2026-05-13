@@ -92,16 +92,25 @@ def _run_pipeline(jobs, resumes, cfg, llm_cfg, exp):  # type: ignore[no-untyped-
     # for ~50 cross-encoder calls per job and inference is fast enough.
     reranker = Reranker(device="cpu") if exp.get("use_reranker", True) else None
 
+    # Multi-agent uses a sync façade over the async orchestrator so the
+    # rest of the pipeline (which is sync) doesn't need refactoring. The
+    # async path runs Candidate-Analyst calls in parallel under a
+    # semaphore — typically 4–8× faster than the legacy sync orchestrator.
     orchestrator = None
     if exp.get("use_multi_agent", True):
-        from hr_rec.agents.llm import LLM, LLMError
-        from hr_rec.agents.orchestrator import Orchestrator
+        from hr_rec.agents.llm import LLMError
+        from hr_rec.utils.async_facade import AsyncOrchestratorFacade
 
         provider = (exp.get("llm_override") or {}).get("provider") or llm_cfg["provider"]
         model = (exp.get("llm_override") or {}).get("model") or llm_cfg["model"]
         try:
-            llm = LLM(model=model, provider=provider, temperature=llm_cfg.get("temperature", 0.2))
-            orchestrator = Orchestrator(llm, explain_top_k=5)
+            orchestrator = AsyncOrchestratorFacade(
+                model=model,
+                provider=provider,
+                temperature=llm_cfg.get("temperature", 0.2),
+                concurrency=4,
+                explain_top_k=5,
+            )
         except LLMError as e:
             log.warning("LLM unavailable (%s) — running pipeline without agent layer", e)
             orchestrator = None

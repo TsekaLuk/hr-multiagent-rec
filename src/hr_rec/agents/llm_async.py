@@ -51,7 +51,8 @@ class AsyncLLM:
         provider: str = "siliconflow",
         temperature: float = 0.2,
         max_tokens: int = 2048,
-        timeout: float = 60.0,
+        # See hr_rec.agents.llm.LLM for the 180s rationale.
+        timeout: float = 180.0,
         concurrency: int = 8,
     ) -> None:
         self.model = model

@@ -45,7 +45,7 @@ experiments:
     use_bidirectional: true
     use_multi_agent: false
 
-  - name: full
+  - name: full_multiagent
     method: pipeline
     use_reranker: true
     use_bidirectional: true

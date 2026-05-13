@@ -40,7 +40,10 @@ class LLM:
         provider: str = "siliconflow",
         temperature: float = 0.2,
         max_tokens: int = 2048,
-        timeout: float = 60.0,
+        # 180s: DeepSeek-V4-Flash on SiliconFlow free tier routinely
+        # hits ~60-90 s TTFT for ~1.5k-token prompts. 60s causes
+        # constant client-side timeouts that double total wall-clock.
+        timeout: float = 180.0,
     ) -> None:
         self.model = model
         self.provider = provider
