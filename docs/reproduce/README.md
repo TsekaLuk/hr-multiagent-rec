@@ -92,7 +92,10 @@ paper appendix.
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| `LocalEntryNotFoundError` for Qwen3-* | HF unreachable | `HF_ENDPOINT=https://hf-mirror.com` |
+| `LocalEntryNotFoundError` for Qwen3-* | HF unreachable | `HF_ENDPOINT=https://hf-mirror.com` or use ModelScope (recommended on CN networks): `pip install modelscope && python -c "from modelscope import snapshot_download; snapshot_download('Qwen/Qwen3-Embedding-0.6B')"` |
+| Silent process kill mid-Reranker load | M4 16 GB OOM (Embedder + Reranker both on MPS) | `run_experiments.py` already pins Reranker to CPU. If you wrote custom code: `Reranker(device="cpu")` |
 | `MPS placeholder storage` error | Old PyTorch | `PYTORCH_ENABLE_MPS_FALLBACK=1` |
-| `LLMError: No API key` | Forgot to set provider key | `cp .env.example .env` and fill |
-| `CrewAI ImportError` | Optional extra | `pip install -e ".[agents]"` |
+| `LLMError: No API key` | Forgot to set provider key | `cp .env.example .env` and fill `SILICONFLOW_API_KEY` |
+| `cannot reshape tensor of 0 elements` from Reranker | Old Reranker code (sentence-transformers `CrossEncoder` is incompatible) | Already fixed in `hr_rec.matching.reranker` — pull latest |
+| `CrewAI ImportError` | Optional extra | We hand-rolled the orchestrator; you don't need CrewAI. If you want it: `pip install -e ".[agents]"` |
+| Tests skip Embedder tests on CI | No GPU / no model cache | Expected; CI runs `pytest -m unit` only |
