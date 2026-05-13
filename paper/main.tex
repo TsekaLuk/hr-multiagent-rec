@@ -177,12 +177,23 @@ Four LLM-backed agents share an explicit blackboard:
 \item \textbf{Coordinator} adjusts the fused score
       $\hat{s}$ by $\pm 0.08$ per ``high/low'' fit verdict and applies
       a small risk-flag penalty.
-\item \textbf{Explainer} writes an 80-character rationale per
-      recommendation.
+\item \textbf{Explainer} (verification-style) writes an
+      80-character rationale per recommendation; it operates on the
+      Coordinator's output to counter LLM self-confirmation bias.
 \end{itemize}
 
 Agents communicate by writing to a shared
 $\mathtt{AgentContext}$ — there is no free-form back-and-forth.
+The orchestrator is an \emph{async event-stream}
+(\texttt{AsyncIterator[Event]}); per-candidate analyses run in
+parallel under an \texttt{asyncio.Semaphore} (default 8 concurrent
+calls on a 16\,GB M4). We additionally adopt the
+\emph{prefix-cached fork} pattern: every Candidate-Analyst call shares
+an identical \emph{static prefix} (system prompt + JD analysis +
+few-shot bullets); only the \emph{tail} differs (one candidate's
+resume). The first call writes this prefix into the provider's prompt
+cache; the remaining $N{-}1$ calls hit cache-read pricing.
+
 \cref{alg:pipeline} gives the end-to-end procedure.
 
 \begin{algorithm}[t]

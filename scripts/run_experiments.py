@@ -87,7 +87,10 @@ def _run_pipeline(jobs, resumes, cfg, llm_cfg, exp):  # type: ignore[no-untyped-
     from hr_rec.pipeline import Pipeline, PipelineConfig
 
     embedder = Embedder()
-    reranker = Reranker() if exp.get("use_reranker", True) else None
+    # On a 16GB M4, running Embedder and Reranker concurrently on MPS
+    # over-pressures unified memory. Pin Reranker to CPU; it's only used
+    # for ~50 cross-encoder calls per job and inference is fast enough.
+    reranker = Reranker(device="cpu") if exp.get("use_reranker", True) else None
 
     orchestrator = None
     if exp.get("use_multi_agent", True):
