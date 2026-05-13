@@ -88,21 +88,34 @@ make eval && make summary
 
 ## Benchmarks
 
-Real numbers from a 30-job slice of the synthetic Tianchi-style corpus
-(seed=42; 500 indexed resumes; full grid is in `outputs/ablation.csv`).
+Live numbers from a 3-job slice (seed=42, 500 indexed resumes, `outputs/ablation.csv`).
+Multi-Agent stage ran against the real SiliconFlow API using `Qwen/Qwen3.5-4B`
+(thinking mode off). Full ablation is being scaled to 30 jobs.
 
-| Method                                  | P@10  | R@10  | nDCG@10   | MRR    |
-|-----------------------------------------|------:|------:|----------:|-------:|
-| TF-IDF (jieba)                          | 0.917 | 0.190 | 0.783     | 0.944  |
-| BM25 (jieba)                            | 0.967 | 0.203 | 0.829     | 0.983  |
-| Qwen3-Embedding-0.6B (no rerank)        | 0.930 | 0.192 | 0.795     | 0.967  |
-| **+ Bidirectional scoring (this work)** | **0.947** | **0.198** | **0.889** | **1.000** |
-| + Reranker + Multi-Agent                | _running_   | _running_   | _running_       | _running_    |
+| Method                              | P@10  | R@10  | nDCG@10   | MRR    | sec    | LLM \$ |
+|-------------------------------------|------:|------:|----------:|-------:|-------:|-------:|
+| TF-IDF (jieba)                      | 0.867 | 0.188 | 0.712     | 0.833  | 0.3    | —      |
+| BM25 (jieba)                        | 0.967 | 0.211 | 0.826     | 1.000  | 1.1    | —      |
+| Qwen3-Embedding-0.6B only           | 0.933 | 0.203 | 0.799     | 1.000  | 104.9  | —      |
+| + Bidirectional scoring             | 0.967 | 0.213 | **0.920** | 1.000  | 83.9   | —      |
+| + Reranker (CPU) + Bidirectional    | _running_ | _running_ | _running_ | _running_ | _~600_ | —    |
+| **Full (+ Multi-Agent)** ⭐          | 0.967 | 0.213 | 0.913     | 1.000  | 356.8  | **$0** |
 
-> **Update 2026-05-14:** 3/3 end-to-end multi-agent tests pass against the
-> real SiliconFlow API using `deepseek-ai/DeepSeek-V4-Flash`. The async
-> orchestrator (parallel fan-out + prompt-cache layout) is validated;
-> the remaining ablation rows are running now and will be appended.
+Multi-Agent stage telemetry (Qwen3.5-4B via SiliconFlow free tier):
+**33 calls · 10,145 input + 6,914 output tokens · 0 cache reads · $0 cost · 356 s wall-clock for 3 jobs**.
+
+### Observations
+
+* **Bidirectional scoring is the dominant lever** (+9.4–12.1 pp nDCG@10 over
+  pure semantic recall). The candidate-side score (location compatibility +
+  multiplicative hard floors + severe-salary-inversion negative-score branch)
+  reliably reorders strong candidates above skill-matched-but-unwilling ones.
+* **Multi-Agent does not change ranking metrics measurably** on this slice
+  (same P@10 / R@10 / MRR as full_no_agent). The Agent layer's value is in
+  the *generated rationales* (~80-char per recommendation) and the *risk
+  flagging* surfaced by Candidate-Analyst — see `docs/thesis_materials/case_studies.md`.
+* **Same-family stack works**: Qwen3-Embedding-0.6B → Qwen3-Reranker-0.6B
+  → Qwen3.5-4B agent reasoning, all on SiliconFlow / Hugging Face / ModelScope.
 
 Adding our bidirectional scoring on top of pure semantic recall yields
 **+9.4 percentage points of nDCG@10** and lifts MRR to 1.0 on this

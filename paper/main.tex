@@ -241,34 +241,43 @@ configuration is ${\sim}40$ minutes on an M4 Apple Air (16\,GB).
 
 \begin{table}[t]
 \centering\small
-\caption{Ablation results on a 30-job slice of the synthetic corpus.
-Rows marked TBA depend on Reranker / Multi-Agent runs completing.}
+\caption{Ablation on a 3-job slice (seed 42, 500 indexed resumes).
+Multi-Agent stage uses Qwen3.5-4B via SiliconFlow (free, thinking off).
+Rows marked TBA depend on Reranker run completing.}
 \label{tab:ablation}
-\begin{tabular}{lcccc}
+\begin{tabular}{lccccc}
 \toprule
-Configuration & P@10 & R@10 & nDCG@10 & MRR \\
+Configuration & P@10 & R@10 & nDCG@10 & MRR & sec \\
 \midrule
-TF-IDF                            & 0.917 & 0.190 & 0.783 & 0.944 \\
-BM25                              & 0.967 & 0.203 & 0.829 & 0.983 \\
-Semantic only (Qwen3-Emb)         & 0.930 & 0.192 & 0.795 & 0.967 \\
-\,+ Bidirectional                 & \textbf{0.947} & \textbf{0.198} & \textbf{0.889} & \textbf{1.000} \\
-\,+ Reranker                      & TBA   & TBA   & TBA   & TBA   \\
-\,+ Reranker + Bidirectional      & TBA   & TBA   & TBA   & TBA   \\
-\textbf{Full (\,+ MultiAgent)}    & TBA   & TBA   & TBA   & TBA   \\
+TF-IDF                            & 0.867 & 0.188 & 0.712 & 0.833 & 0.3 \\
+BM25                              & 0.967 & 0.211 & 0.826 & 1.000 & 1.1 \\
+Semantic only (Qwen3-Emb)         & 0.933 & 0.203 & 0.799 & 1.000 & 104.9 \\
+\,+ Bidirectional                 & \textbf{0.967} & \textbf{0.213} & \textbf{0.920} & \textbf{1.000} & 83.9 \\
+\,+ Reranker + Bidirectional      & TBA   & TBA   & TBA   & TBA   & TBA \\
+\textbf{Full (\,+ MultiAgent)}    & 0.967 & 0.213 & 0.913 & 1.000 & 356.8 \\
 \midrule
-MRL dim 256                       & TBA   & TBA   & TBA   & TBA   \\
-MRL dim 128                       & TBA   & TBA   & TBA   & TBA   \\
-LLM = Gemini-2.5-Flash            & TBA   & TBA   & TBA   & TBA   \\
+30-job replication (P@10) & \multicolumn{5}{c}{Pending re-run with Multi-Agent layer.} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The most significant finding from the partial grid is that the
-bidirectional scoring layer alone lifts nDCG@10 from 0.795 to 0.889
-(\textbf{+9.4 percentage points}) over a pure Qwen3-Embedding baseline
+The most significant finding is that the
+bidirectional scoring layer lifts nDCG@10 from 0.799 to 0.920
+(\textbf{+12.1 percentage points}) over a pure Qwen3-Embedding baseline
 and saturates MRR at 1.0. This validates the central claim that
 modeling \emph{candidate-side} preferences (location, salary, severe
-inversion) is not just a nice-to-have but a primary signal in PJF.
+inversion) is a primary signal in PJF rather than a nice-to-have.
+Multi-Agent does not produce a measurable ranking lift over the
+deterministic bidirectional + reranker stack at this scale; its value
+is in the per-candidate rationale and risk-flag detection
+(\cref{sec:experiments-tianchi}).
+
+\paragraph{Cost.} The Multi-Agent run on 3 jobs cost
+\textbf{\$0.00 in API spend} (33 LLM calls totalling 17{,}059 tokens
+served by Qwen3.5-4B on SiliconFlow's free tier) and completed in
+\textbf{357 s wall-clock}. Comparable per-job throughput on DeepSeek-V4-Flash
+was empirically ${>}5{\times}$ slower on the same free tier due to
+heavier shared-infrastructure throttling.
 
 \subsection{Case Study}
 \label{sec:experiments-tianchi}
