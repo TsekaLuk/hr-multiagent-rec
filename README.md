@@ -114,6 +114,16 @@ complete.
 
 Full reproduction recipe — datasets, configs, seeds — is documented in [`docs/reproduce/README.md`](docs/reproduce/README.md). All experiments are seed-pinned and runnable on a single M-series Mac.
 
+## Documentation
+
+| Audience            | Start here                                                          |
+|---------------------|---------------------------------------------------------------------|
+| Graders / thesis defenders | [`docs/thesis_materials/`](docs/thesis_materials/) — 8股素材 |
+| Open-source users   | [`docs/reproduce/`](docs/reproduce/README.md) → [`docs/api/`](docs/api/README.md) |
+| Co-authors / future maintainers | [`docs/architecture/`](docs/architecture/README.md) → [`docs/architecture/decisions.md`](docs/architecture/decisions.md) (ADRs) → [`docs/architecture/agent_upgrade.md`](docs/architecture/agent_upgrade.md) |
+| Paper readers       | [`paper/main.tex`](paper/main.tex) (arXiv-targeted) + [`paper/refs.bib`](paper/refs.bib) |
+| Changelog           | [`CHANGELOG.md`](CHANGELOG.md)                                       |
+
 ## Citation
 
 If you use this codebase or build on the framework, please cite:
